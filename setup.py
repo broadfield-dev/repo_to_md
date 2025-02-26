@@ -11,8 +11,9 @@ setup(
     url="https://github.com/broadfield-dev/repo_to_md",
     packages=["repo_to_md"],
     package_data={
-        "repo_to_md": ["templates/*.html"],  # Ensure templates are included
+        "repo_to_md": ["templates/*.html"],  # Explicitly include templates
     },
+    include_package_data=True,  # Ensure all package data is included
     install_requires=[
         "requests",
         "huggingface_hub",
