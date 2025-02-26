@@ -1,10 +1,14 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from .core import create_markdown_document
 import markdown
-import io
+import os
+import pkg_resources
 
 def run_demo(host="0.0.0.0", port=7860, debug=True):
-    app = Flask(__name__, template_folder="../templates")
+    # Use pkg_resources to locate the templates directory in the installed package
+    template_path = pkg_resources.resource_filename("repo_to_md", "templates")
+    
+    app = Flask(__name__, template_folder=template_path)
 
     @app.route('/')
     def index():
