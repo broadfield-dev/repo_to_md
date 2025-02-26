@@ -3,11 +3,25 @@ from .core import create_markdown_document
 import markdown
 import os
 import pkg_resources
+import sys
 
 def run_demo(host="0.0.0.0", port=7860, debug=True):
-    # Use pkg_resources to locate the templates directory in the installed package
-    template_path = pkg_resources.resource_filename("repo_to_md", "templates")
-    
+    # Determine the template folder dynamically
+    try:
+        # Try to use pkg_resources for installed packages
+        template_path = pkg_resources.resource_filename("repo_to_md", "templates")
+    except Exception:
+        # Fallback for running from source (development)
+        # Assume templates are in a sibling 'templates' directory relative to this file
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(current_dir, "../templates")
+        template_path = os.path.abspath(template_path)
+
+    # Ensure the template path exists
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Template directory not found at: {template_path}")
+
+    # Create Flask app with the resolved template folder
     app = Flask(__name__, template_folder=template_path)
 
     @app.route('/')
