@@ -8,10 +8,10 @@ setup(
     long_description_content_type="text/markdown",
     author="Your Name",
     author_email="your.email@example.com",
-    url="https://github.com/yourusername/repo_to_md",
+    url="https://github.com/broadfield-dev/repo_to_md",
     packages=["repo_to_md"],
     package_data={
-        "repo_to_md": ["templates/*.html"],  # Include templates for demo
+        "repo_to_md": ["templates/*.html"],  # Ensure templates are included
     },
     install_requires=[
         "requests",
