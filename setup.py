@@ -14,7 +14,6 @@ setup(
         "repo_to_md": ["templates/*.html"],  # Explicitly include templates
     },
     include_package_data=True,  # Include all package data files
-    data_files=[("templates", ["templates/index.html"])],  # Explicitly specify data files
     install_requires=[
         "requests",
         "huggingface_hub",
