@@ -10,7 +10,7 @@ def find_template_path():
     try:
         # Try to use pkg_resources for installed packages
         template_path = pkg_resources.resource_filename("repo_to_md", "templates")
-    except Exception:
+    except Exception as e:
         # Fallback for running from source (development)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         template_path = os.path.join(current_dir, "../templates")
@@ -18,12 +18,21 @@ def find_template_path():
 
     # Check if the template path exists
     if not os.path.exists(template_path):
-        # Try an alternative path in case of installation issues
-        alternative_path = os.path.join(os.path.dirname(__file__), "templates")
+        # Try an alternative path within the package directory
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        alternative_path = os.path.join(package_dir, "templates")
         if os.path.exists(alternative_path):
             template_path = alternative_path
         else:
-            raise FileNotFoundError(f"Template directory not found at: {template_path} or {alternative_path}")
+            # One last attempt: check if installed but in a different structure
+            site_packages = os.path.join(os.path.dirname(sys.executable), "site-packages")
+            installed_path = os.path.join(site_packages, "repo_to_md", "templates")
+            if os.path.exists(installed_path):
+                template_path = installed_path
+            else:
+                raise FileNotFoundError(
+                    f"Template directory not found at: {template_path}, {alternative_path}, or {installed_path}"
+                )
 
     return template_path
 
