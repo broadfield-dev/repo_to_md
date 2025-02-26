@@ -9,11 +9,17 @@ setup(
     author="Your Name",
     author_email="your.email@example.com",
     url="https://github.com/yourusername/repo_to_md",
-    packages=["repo_to_md"],  # Explicitly include only the core package
+    packages=["repo_to_md"],
+    package_data={
+        "repo_to_md": ["templates/*.html"],  # Include templates for demo
+    },
     install_requires=[
         "requests",
         "huggingface_hub",
     ],
+    extras_require={
+        "demo": ["flask", "markdown"],  # Optional dependencies for demo
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
