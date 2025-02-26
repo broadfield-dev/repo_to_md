@@ -4,17 +4,24 @@ Convert GitHub or Hugging Face repositories, or local files, into a single Markd
 
 ## Installation
 
-Install the core package via pip:
+### Core Package
+Install the core functionality with required dependencies:
 
 ```
 pip install repo_to_md
 ```
 
+### With Demo UI
+Install with the optional demo UI and its additional dependencies:
+
+```
+pip install repo_to_md[demo]
+```
+
 ## Usage
 
 ### As a Library
-
-Use the package in your Python code to generate Markdown from repositories or files:
+Use the core functionality to generate Markdown:
 
 ```python
 from repo_to_md import create_markdown_document
@@ -29,24 +36,23 @@ with open("file.txt", "rb") as f:
     print(markdown)
 ```
 
-### Optional Demo UI
+### Running the Demo UI
+If installed with the demo extra, run the Flask-based UI:
 
-The package includes a Flask-based demo UI in the repository, but it’s not installed with pip. To run it:
+```python
+from repo_to_md import run_demo
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/repo_to_md.git
-   cd repo_to_md
-   ```
-2. Install demo dependencies:
-   ```
-   pip install flask markdown
-   ```
-3. Run the demo:
-   ```
-   python demo/app.py
-   ```
-4. Visit `http://localhost:7860` in your browser.
+# Run the demo (default: http://localhost:7860)
+run_demo()
+```
+
+Alternatively, run directly from the command line after installing with demo:
+
+```
+python -m repo_to_md.demo
+```
+
+Visit `http://localhost:7860` in your browser.
 
 ## Features
 
@@ -58,7 +64,7 @@ The package includes a Flask-based demo UI in the repository, but it’s not ins
 
 - Python 3.6+
 - Core dependencies: `requests`, `huggingface_hub`
-- Demo dependencies (optional): `flask`, `markdown`
+- Demo dependencies (optional, with `repo_to_md[demo]`): `flask`, `markdown`
 
 ## Contributing
 
