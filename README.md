@@ -8,14 +8,14 @@ Convert GitHub or Hugging Face repositories, or local files, into a single Markd
 Install the core functionality with required dependencies:
 
 ```
-pip install repo_to_md
+pip install git+https://github.com/broadfield-dev/repo_to_md.git#egg=repo_to_md
 ```
 
 ### With Demo UI
 Install with the optional demo UI and its additional dependencies:
 
 ```
-pip install repo_to_md[demo]
+pip install git+https://github.com/broadfield-dev/repo_to_md.git#egg=repo_to_md[demo]
 ```
 
 ## Usage
