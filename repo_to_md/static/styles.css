@@ -14,7 +14,7 @@ body.dark-mode {
 body.dark-mode .input-section,
 body.dark-mode .markdown-section,
 body.dark-mode .preview-section {
-    background: #2F4054;
+    background: #041121;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -157,7 +157,7 @@ body.light-mode .spinner {
 }
 
 input[type="text"], input[type="file"] {
-    width: 100%;
+    width: 95%;
     padding: 10px;
     margin: 10px 0;
     border-radius: 5px;
@@ -206,7 +206,7 @@ button:active {
 }
 
 textarea {
-    width: 100%;
+    width: 95%;
     height: 400px; /* This will be dynamically adjusted by JavaScript */
     margin-top: 10px;
     padding: 10px;
