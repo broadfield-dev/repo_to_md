@@ -5,6 +5,7 @@ import mimetypes
 import os
 from huggingface_hub import HfApi
 from pathlib import Path
+import re
 
 GITHUB_API = "https://api.github.com/repos/"
 
@@ -177,3 +178,69 @@ def create_markdown_document(url=None, files=None):
             markdown_content += process_uploaded_file(file)
     
     return markdown_content
+
+
+def markdown_to_files(markdown_text):
+    """
+    Converts a markdown document back into individual files.
+    Returns a tuple: (file_data, file_buffers)
+    - file_data: List of dicts for display ({filename, content, is_binary, filepath})
+    - file_buffers: Dict of filename -> bytes for download
+    """
+    files = []
+    buffers = {}
+    current_filename = None
+    current_content = []
+    is_binary = False
+    in_code_block = False
+    code_block_lang = None
+
+    lines = markdown_text.splitlines()
+
+    for line in lines:
+        if line.startswith("### File: "):
+            if current_filename:  # Save the previous file
+                content = "\n".join(current_content) if not is_binary else ""
+                file_path = current_filename
+                files.append({
+                    "filename": current_filename,
+                    "content": "[Binary File]" if is_binary else content,
+                    "is_binary": is_binary,
+                    "filepath": file_path
+                })
+                buffers[file_path] = b"[Binary content not stored in Markdown]" if is_binary else content.encode('utf-8')
+            current_filename = line[len("### File: "):].strip()
+            current_content = []
+            is_binary = False
+            in_code_block = False
+            code_block_lang = None
+        elif line.startswith("[Binary file - ") and current_filename:
+            is_binary = True
+            current_content = []
+        elif line.startswith("```"):
+            if in_code_block:
+                in_code_block = False
+                code_block_lang = None
+            else:
+                in_code_block = True
+                match = re.match(r"^```(\w+)?", line)
+                code_block_lang = match.group(1) if match else None
+        elif not in_code_block or is_binary:
+            continue
+        elif line != "```":
+            current_content.append(line)
+
+    if current_filename:  # Save the last file
+        content = "\n".join(current_content) if not is_binary else ""
+        file_path = current_filename
+        files.append({
+            "filename": current_filename,
+            "content": "[Binary File]" if is_binary else content,
+            "is_binary": is_binary,
+            "filepath": file_path
+        })
+        buffers[file_path] = b"[Binary content not stored in Markdown]" if is_binary else content.encode('utf-8')
+
+    if not files:
+        return "Error: No files found in the markdown document.", {}
+    return files, buffers
