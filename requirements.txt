@@ -1,5 +1,5 @@
 requests
 huggingface_hub
 # For demo (optional):
-# flask
-# markdown
+flask
+markdown
