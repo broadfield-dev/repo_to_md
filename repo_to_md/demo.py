@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, jsonify, send_file
-from .core import create_markdown_document
+from repo_to_md.core import create_markdown_document
 import markdown
 import os
 import pkg_resources
 import sys
+import io
 
 def find_template_path():
     """Find the templates directory, either from installed package or source."""
