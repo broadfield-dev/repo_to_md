@@ -1,4 +1,4 @@
-# repo_to_md
+# repo_to_md / md_to_repo
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
