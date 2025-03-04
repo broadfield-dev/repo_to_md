@@ -25,7 +25,7 @@ There are two ways to install `repo_to_md`, depending on whether you need the in
 This installs only the core functionality and its dependencies (`requests` and `huggingface_hub`).  Use this if you only need the Python library features.
 
 ```bash
-pip install repo_to_md
+pip install git+https://github.com/broadfield-dev/repo_to_md.git@dev#egg=repo_to_md[main]
 ```
 
 ### 2. With Demo UI
@@ -34,7 +34,7 @@ This installs the core package *and* the dependencies needed for the web UI (`fl
 This calls the 'dev' branch of the repo that has the reverse markdown to repo function.
 
 ```bash
-"pip install git+https://github.com/broadfield-dev/repo_to_md.git@dev#egg=repo_to_md[demo]
+pip install git+https://github.com/broadfield-dev/repo_to_md.git@dev#egg=repo_to_md[demo]
 ```
 
 ## Usage
