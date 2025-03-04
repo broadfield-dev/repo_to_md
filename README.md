@@ -31,9 +31,10 @@ pip install repo_to_md
 ### 2. With Demo UI
 
 This installs the core package *and* the dependencies needed for the web UI (`flask` and `markdown`).
+This calls the 'dev' branch of the repo that has the reverse markdown to repo function.
 
 ```bash
-pip install repo_to_md[demo]
+"pip install git+https://github.com/broadfield-dev/repo_to_md.git@dev#egg=repo_to_md[demo]
 ```
 
 ## Usage
