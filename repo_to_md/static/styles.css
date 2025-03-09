@@ -424,7 +424,7 @@ input:checked + .slider:before {
 
 .tab {
     overflow-x: auto;
-    background-color: #282c34;
+    background-color: #1f2229;
     border-bottom: 1px solid #ccc;
     margin-bottom: 20px;
     white-space: nowrap;
