@@ -3,6 +3,7 @@ body {
     margin: 0;
     padding: 0;
     transition: background 0.3s, color 0.3s;
+    font-size: 16px;
 }
 
 /* Dark Mode (Default) */
@@ -58,6 +59,7 @@ body.dark-mode textarea {
 
 body.dark-mode #output {
     background: #3A5063;
+    color: #FFFFFF;
 }
 
 body.dark-mode #output h1, body.dark-mode #output h2, body.dark-mode #output h3 {
@@ -69,6 +71,20 @@ body.dark-mode #output h1, body.dark-mode #output h2, body.dark-mode #output h3 
 body.dark-mode #output code,
 body.dark-mode #output pre {
     background: #2C3E50;
+}
+
+body.dark-mode .file-preview {
+    background: #2C3E50;
+    border: 1px solid #4A6FA5;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-mode .language-binary {
+    color: #A0A0A0; /* Greyed out for binary */
+    font-style: italic;
 }
 
 body.dark-mode .spinner {
@@ -125,6 +141,7 @@ body.light-mode textarea {
 
 body.light-mode #output {
     background: white;
+    color: #333;
 }
 
 body.light-mode #output h1, body.light-mode #output h2, body.light-mode #output h3 {
@@ -134,6 +151,20 @@ body.light-mode #output h1, body.light-mode #output h2, body.light-mode #output 
 body.light-mode #output code,
 body.light-mode #output pre {
     background: #f4f4f4;
+}
+
+body.light-mode .file-preview {
+    background: #f4f4f4;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .language-binary {
+    color: #666; /* Greyed out for binary */
+    font-style: italic;
 }
 
 body.light-mode .spinner {
@@ -147,22 +178,26 @@ body.light-mode .spinner {
     margin: 20px auto;
     padding: 20px;
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .input-section, .markdown-section, .preview-section {
     border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 15px;
+    margin-bottom: 15px;
     transition: background 0.3s, box-shadow 0.3s;
 }
 
 input[type="text"], input[type="file"] {
-    width: 95%;
+    width: 100%;
     padding: 10px;
     margin: 10px 0;
     border-radius: 5px;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: border-color 0.3s;
+    box-sizing: border-box;
+    font-size: 16px;
 }
 
 button {
@@ -173,6 +208,8 @@ button {
     cursor: pointer;
     margin: 5px;
     transition: background 0.3s, transform 0.1s, box-shadow 0.3s;
+    font-size: 14px;
+    min-width: 80px;
 }
 
 button:active {
@@ -197,17 +234,18 @@ button:active {
 .output-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 15px;
 }
 
 .markdown-section, .preview-section {
     flex: 1;
-    min-width: 300px;
+    min-width: 100%;
+    box-sizing: border-box;
 }
 
 textarea {
-    width: 95%;
-    height: 400px; /* This will be dynamically adjusted by JavaScript */
+    width: 100%;
+    height: 300px;
     margin-top: 10px;
     padding: 10px;
     border-radius: 5px;
@@ -215,16 +253,19 @@ textarea {
     font-family: monospace;
     resize: vertical;
     transition: background 0.3s, color 0.3s, border 0.3s;
+    box-sizing: border-box;
+    font-size: 14px;
 }
 
 #output {
     margin-top: 10px;
     padding: 10px;
-    max-height: 600px;
+    max-height: 400px;
     overflow-y: auto;
     border-radius: 5px;
     border: 1px solid #4A6FA5;
     transition: background 0.3s, border 0.3s;
+    box-sizing: border-box;
 }
 
 #output code {
@@ -250,8 +291,8 @@ textarea {
 /* Toggle Switch */
 .mode-toggle {
     position: absolute;
-    top: 20px;
-    right: 20px;
+    top: 10px;
+    right: 10px;
     display: flex;
     align-items: center;
 }
@@ -317,6 +358,8 @@ input:checked + .slider:before {
     cursor: pointer;
     margin-left: 10px;
     transition: background 0.3s, transform 0.1s;
+    font-size: 14px;
+    min-width: 60px;
 }
 
 .copy-button:hover {
@@ -325,4 +368,223 @@ input:checked + .slider:before {
 
 .copy-button:active {
     transform: scale(0.97) translateY(2px);
+}
+
+/* From index.html */
+.file-container, .file-preview {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+.file-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.code-block {
+    background-color: #272822;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+    max-height: 250px;
+    margin-bottom: 10px;
+}
+
+.preview-iframe {
+    width: 100%;
+    height: 300px;
+    border: 1px solid #ddd;
+    box-sizing: border-box;
+}
+
+.download-button {
+    padding: 5px 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    min-width: 60px;
+}
+
+.tab {
+    overflow-x: auto;
+    background-color: #282c34;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 20px;
+    white-space: nowrap;
+}
+
+.tab button {
+    background-color: inherit;
+    float: none;
+    display: inline-block;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 10px 15px;
+    transition: 0.3s;
+    color: #fff;
+    font-size: 14px;
+}
+
+.tab button:hover {
+    background-color: #44475a;
+}
+
+.tab button.active {
+    background-color: #61af69;
+    color: black;
+}
+
+.tabcontent {
+    display: none;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-top: none;
+    box-sizing: border-box;
+    background: inherit;
+    color: inherit;
+}
+
+body.dark-mode .tabcontent {
+    background: linear-gradient(to bottom right, #1A252F, #2C3E50);
+    color: #E0E6ED;
+}
+
+body.light-mode .tabcontent {
+    background: linear-gradient(to bottom right, #f0f4f8, #d9e2ec);
+    color: #333;
+}
+
+.hidden {
+    display: none;
+}
+
+#filesDisplay {
+    margin-top: 20px;
+}
+
+#combinedPreviewContent iframe {
+    width: 100%;
+    height: 400px;
+    border: 1px solid #ddd;
+    margin-top: 10px;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    .input-section, .markdown-section, .preview-section {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+
+    h1, h2, h3 {
+        font-size: 1.2em;
+    }
+
+    button {
+        padding: 8px 15px;
+        font-size: 13px;
+        margin: 3px;
+    }
+
+    .copy-button {
+        padding: 6px 12px;
+        font-size: 13px;
+        margin-left: 5px;
+    }
+
+    .download-button {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    .output-container {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    textarea, #output {
+        height: 200px;
+        font-size: 13px;
+    }
+
+    .code-block {
+        max-height: 200px;
+    }
+
+    .preview-iframe, #combinedPreviewContent iframe {
+        height: 250px;
+    }
+
+    .mode-toggle {
+        top: 5px;
+        right: 5px;
+    }
+
+    .switch {
+        width: 40px;
+        height: 20px;
+    }
+
+    .slider:before {
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(20px);
+    }
+
+    .tab {
+        padding-bottom: 5px;
+    }
+
+    .tab button {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    h1, h2, h3 {
+        font-size: 1em;
+    }
+
+    input[type="text"], input[type="file"] {
+        font-size: 14px;
+    }
+
+    button, .copy-button, .download-button {
+        padding: 6px 10px;
+        font-size: 12px;
+        min-width: 50px;
+    }
+
+    textarea, #output {
+        height: 150px;
+    }
+
+    .code-block {
+        max-height: 150px;
+    }
+
+    .preview-iframe, #combinedPreviewContent iframe {
+        height: 200px;
+    }
 }
