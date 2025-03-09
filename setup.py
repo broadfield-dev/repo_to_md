@@ -11,7 +11,7 @@ setup(
     url="https://github.com/broadfield-dev/repo_to_md",
     packages=["repo_to_md"],
     package_data={
-        "repo_to_md": ["templates/*.html", "static/*.css"],  # Include both templates and static files
+        "repo_to_md": ["templates/*.html", "static/*.css", "static/*.js"],  # Include both templates and static files
     },
     include_package_data=True,  # Include all package data files
     install_requires=[
