@@ -4,143 +4,71 @@
     <title>Repo & Files to Markdown</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/okaidia.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </head>
 <body class="dark-mode">
     <div class="container">
         <div class="mode-toggle">
+            <div class="tooltip">
             <label class="switch">
                 <input type="checkbox" id="modeToggle" onchange="toggleMode()">
                 <span class="slider"></span>
             </label>
-            <label for="modeToggle">Light Mode</label>
-        </div>
-        <div class="input-section">
-            <h1>Repository & Files to Markdown Converter</h1>
-            <p>Enter a GitHub/Hugging Face Space URL (e.g., https://huggingface.co/spaces/username/space)</p>
-            <input type="text" id="repoUrl" placeholder="Enter GitHub or Hugging Face Space URL">
-            <p>OR upload files (select multiple files or a folder - folder upload supported in Chrome)</p>
-            <input type="file" id="fileInput" multiple webkitdirectory>
-            <br>
-            <button onclick="processRepo()">Convert URL</button>
-            <button onclick="processFiles()">Convert Files</button>
-            <button id="downloadBtn" style="display: none;" onclick="downloadMarkdown()">Download .md</button>
-            <div id="spinner" class="spinner"></div>
-        </div>
-        <div class="output-container">
-            <div class="markdown-section">
-                <h2>Markdown Output: <button class="copy-button" onclick="copyToClipboard()">Copy</button></h2>
-                <textarea id="markdownOutput" readonly></textarea>
             </div>
-            <div class="preview-section">
-                <h2>Preview:</h2>
-                <div id="output"></div>
+            <!--label for="modeToggle">Light Mode</label-->
+        </div>
+
+        <div class="tab">
+            <button class="tablinks active" onclick="openTab(event, 'repoToMarkdown')">Repo to Markdown</button>
+            <button class="tablinks" onclick="openTab(event, 'markdownToFiles')">Markdown to Files</button>
+        </div>
+
+        <!-- Repo to Markdown Tab -->
+        <div id="repoToMarkdown" class="tabcontent" style="display: block;">
+            <div class="input-section">
+                <h1>Repository & Files to Markdown Converter</h1>
+                <p>Enter a GitHub/Hugging Face Space URL</p>
+                <input type="text" id="repoUrl" placeholder="Enter GitHub or Hugging Face Space URL">
+                <p>OR upload files</p>
+                <input type="file" id="fileInput" multiple webkitdirectory>
+                <br>
+                <button onclick="processRepo()">Convert URL</button>
+                <button onclick="processFiles()">Convert Files</button>
+                <button id="downloadBtn" style="display: none;" onclick="downloadMarkdown()">Download .md</button>
+                <div id="spinner" class="spinner"></div>
+            </div>
+            <div class="output-container">
+                <div class="markdown-section">
+                    <h2>Markdown Output: <button class="copy-button" onclick="copyToClipboard()">Copy</button></h2>
+                    <textarea id="markdownOutput" readonly></textarea>
+                </div>
+                <div class="preview-section">
+                    <h2>Preview:</h2>
+                    <div id="output"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Markdown to Files Tab -->
+        <div id="markdownToFiles" class="tabcontent">
+            <div class="input-section">
+                <h2>Markdown to Files</h2>
+                <p>Upload a Markdown file:</p>
+                <input type="file" id="markdownFileInput">
+                <p>Or paste Markdown text:</p>
+                <textarea id="markdownPasteInput" placeholder="Paste Markdown here"></textarea>
+                <button onclick="reverseProcess()">Extract Files</button>
+                <div id="reverseSpinner" class="spinner" style="display: none;"></div>
+            </div>
+            <div id="filesDisplay"></div>
+            <button id="downloadExtractedBtn" class="hidden" onclick="downloadExtractedFiles()">Download All Files (zip)</button>
+            <div id="combinedPreview" style="margin-bottom: 20px;">
+                <h3>Combined HTML Preview:</h3>
+                <div id="combinedPreviewContent"></div>
             </div>
         </div>
     </div>
-    <script>
-        let currentMarkdown = '';
-        let currentFilename = '';
-        function toggleMode() {
-            const body = document.body;
-            const toggle = document.getElementById('modeToggle');
-            body.classList.toggle('dark-mode', !toggle.checked);
-            body.classList.toggle('light-mode', toggle.checked);
-        }
-        async function processRepo() {
-            const repoUrl = document.getElementById('repoUrl').value;
-            await processContent('/process', { repo_url: repoUrl });
-        }
-        async function processFiles() {
-            const files = document.getElementById('fileInput').files;
-            if (files.length === 0) {
-                alert('Please select at least one file or folder');
-                return;
-            }
-            const formData = new FormData();
-            for (let file of files) {
-                formData.append('files[]', file);
-            }
-            await processContent('/process', formData, false);
-        }
-        async function processContent(url, data, isJson = true) {
-            const spinner = document.getElementById('spinner');
-            const buttons = document.querySelectorAll('button');
-            spinner.style.display = 'block';
-            buttons.forEach(btn => btn.disabled = true);
-            try {
-                const options = {
-                    method: 'POST',
-                    ...(isJson ? {
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    } : { body: data })
-                };
-                const response = await fetch(url, options);
-                const result = await response.json();
-                if (result.error) {
-                    alert(result.error);
-                    return;
-                }
-                currentMarkdown = result.markdown;
-                currentFilename = result.filename;
-                document.getElementById('markdownOutput').value = result.markdown;
-                document.getElementById('output').innerHTML = result.html;
-                document.getElementById('downloadBtn').style.display = 'inline-block';
-                const markdownOutput = document.getElementById('markdownOutput');
-                const output = document.getElementById('output');
-                markdownOutput.classList.add('fade-in');
-                output.classList.add('fade-in');
-                setTimeout(() => {
-                    markdownOutput.classList.remove('fade-in');
-                    output.classList.remove('fade-in');
-                }, 500);
-                // Ensure both boxes have the same height (match the taller one)
-                const markdownHeight = markdownOutput.scrollHeight;
-                const outputHeight = output.scrollHeight;
-                const maxHeight = Math.max(markdownHeight, outputHeight);
-                markdownOutput.style.height = `${maxHeight}px`;
-                output.style.maxHeight = `${maxHeight}px`;
-            } catch (error) {
-                alert('An error occurred: ' + error.message);
-            } finally {
-                spinner.style.display = 'none';
-                buttons.forEach(btn => btn.disabled = false);
-            }
-        }
-        async function downloadMarkdown() {
-            try {
-                const response = await fetch('/download', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        markdown: currentMarkdown,
-                        filename: currentFilename
-                    })
-                });
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = currentFilename;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-            } catch (error) {
-                alert('Error downloading file: ' + error.message);
-            }
-        }
-        async function copyToClipboard() {
-            const markdownOutput = document.getElementById('markdownOutput');
-            try {
-                await navigator.clipboard.writeText(markdownOutput.value);
-                alert('Markdown copied to clipboard!');
-            } catch (err) {
-                alert('Failed to copy to clipboard: ' + err.message);
-            }
-        }
-    </script>
 </body>
 </html>
