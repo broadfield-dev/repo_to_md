@@ -10,6 +10,42 @@ from typing import List, Tuple, Dict, Optional, Union
 
 GITHUB_API = "https://api.github.com/repos/"
 
+# A set of common text file extensions for quick binary/text classification
+TEXT_EXTENSIONS = {
+    'py', 'md', 'txt', 'js', 'html', 'css', 'json', 'toml', 'yaml', 'yml',
+    'xml', 'csv', 'sh', 'bat', 'ini', 'cfg', 'conf', 'log', 'rst', 'gitignore',
+    'sql', 'env', 'dockerfile'
+}
+
+def is_binary_content(filename: str, content: bytes) -> bool:
+    """
+    Determine if file content is binary by checking extension and content.
+    Any file that is not determined to be text is considered binary.
+    """
+    file_path = Path(filename)
+    extension = file_path.suffix[1:].lower()
+
+    # 1. Check by common text extensions and special filenames
+    if extension in TEXT_EXTENSIONS or file_path.name.lower() in ('dockerfile', '.gitignore'):
+        return False
+
+    # 2. Check by guessed MIME type
+    mime_type, _ = mimetypes.guess_type(filename)
+    if mime_type and mime_type.startswith('text/'):
+        return False
+
+    # 3. Heuristic: Check for null bytes in the first chunk of the file.
+    # This is a strong indicator for many binary formats.
+    if b'\0' in content[:1024]:
+        return True
+
+    # 4. Final check: Try to decode the whole content. If it fails, it's binary.
+    try:
+        content.decode('utf-8')
+        return False  # It's a text file if it decodes successfully
+    except UnicodeDecodeError:
+        return True   # It's a binary file if it fails to decode
+
 def generate_file_tree(paths: List[str]) -> str:
     """Generate a simple file tree from a list of paths."""
     tree = ["📁 Root"]
@@ -46,16 +82,13 @@ def fetch_files(owner: str, repo: str, path: str = "", is_hf: bool = False) -> O
         return None
 
 def get_hf_files(owner: str, repo: str) -> List[Dict]:
-    """Fetch all files from a Hugging Face Space with content filtering."""
+    """Fetch all file paths from a Hugging Face Space."""
     api = HfApi(token=os.getenv('HF_TOKEN'))
     try:
-        file_list = api.list_repo_files(repo_id=f'{owner}/{repo}', repo_type="space")
-        return [
-            {"path": file_path}
-            for file_path in file_list
-            if requests.get(f"https://huggingface.co/spaces/{owner}/{repo}/raw/main/{file_path}", timeout=10)
-                .headers.get('Content-Type', '').startswith(('text/', 'application/octet-stream'))
-        ]
+        # HfApi.list_repo_files returns a list of file paths (str)
+        file_paths = api.list_repo_files(repo_id=f'{owner}/{repo}', repo_type="space")
+        # Return a list of dicts to be consistent with the structure from fetch_files
+        return [{"path": path} for path in file_paths]
     except Exception:
         return []
 
@@ -85,18 +118,12 @@ def process_file_content(file_info: Dict, owner: str, repo: str, is_hf: bool = F
         response.raise_for_status()
         content_raw = response.content if is_hf else base64.b64decode(response.json()['content'])
         
-        file_extension = Path(file_path).suffix[1:] or 'text'
-        mime_type, _ = mimetypes.guess_type(file_path)
-        is_text = (
-            mime_type and mime_type.startswith('text') or
-            file_extension in {'py', 'md', 'txt', 'js', 'html', 'css', 'json'} or
-            "Dockerfile" in file_path
-        )
-        
-        if not is_text:
+        if is_binary_content(file_path, content_raw):
             return f"### File: {file_path}\n[Binary file - {len(content_raw)} bytes]\n\n"
         
-        text_content = content_raw.decode('utf-8')
+        text_content = content_raw.decode('utf-8', errors='replace')
+        file_extension = Path(file_path).suffix[1:].lower() or 'text'
+        
         if file_extension == 'json':
             try:
                 formatted_json = json.dumps(json.loads(text_content), indent=2)
@@ -112,17 +139,13 @@ def process_uploaded_file(file: object) -> str:
     filename = getattr(file, 'filename', 'unknown')
     try:
         content_raw = file.read()
-        file_extension = Path(filename).suffix[1:] or 'text'
-        mime_type, _ = mimetypes.guess_type(filename)
-        is_text = (
-            mime_type and mime_type.startswith('text') or
-            file_extension in {'py', 'md', 'txt', 'js', 'html', 'css', 'json'}
-        )
         
-        if not is_text:
+        if is_binary_content(filename, content_raw):
             return f"### File: {filename}\n[Binary file - {len(content_raw)} bytes]\n\n"
         
-        text_content = content_raw.decode('utf-8')
+        text_content = content_raw.decode('utf-8', errors='replace')
+        file_extension = Path(filename).suffix[1:].lower() or 'text'
+        
         if file_extension == 'json':
             try:
                 formatted_json = json.dumps(json.loads(text_content), indent=2)
