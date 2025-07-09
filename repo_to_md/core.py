@@ -24,7 +24,7 @@ TEXT_FILENAMES = {
 }
 
 EXCLUDE_EXTENSIONS = {'.lock', '.log', '.env', '.so', '.o', '.a', '.dll', '.exe', '.ipynb'}
-EXCLUDE_FILENAMES = {'.gitignore', '.DS_Store'}
+EXCLUDE_FILENAMES = {'.gitignore', '.DS_Store', '.gitattributes'}
 EXCLUDE_PATTERNS = {'__pycache__/', '.git/', 'node_modules/', 'dist/', 'build/'}
 
 HEADERS = {"Accept": "application/json"}
