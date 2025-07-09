@@ -23,17 +23,21 @@ TEXT_FILENAMES = {
     'setup.py', 'gemfile', 'procfile', 'makefile'
 }
 
-EXCLUDE_EXTENSIONS = {'.lock', '.log', '.env', '.so', '.o', '.a', '.dll', '.exe'}
+EXCLUDE_EXTENSIONS = {'.lock', '.log', '.env', '.so', '.o', '.a', '.dll', '.exe', '.ipynb'}
 EXCLUDE_FILENAMES = {'.gitignore', '.DS_Store'}
-EXCLUDE_PATTERNS = {'__pycache__/', '.git/', 'node_modules/'}
+EXCLUDE_PATTERNS = {'__pycache__/', '.git/', 'node_modules/', 'dist/', 'build/'}
+
+HEADERS = {"Accept": "application/json"}
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+if GITHUB_TOKEN:
+    HEADERS['Authorization'] = f'token {GITHUB_TOKEN}'
 
 def is_excluded(filepath: str) -> bool:
     path = Path(filepath)
-    if path.name in EXCLUDE_FILENAMES:
+    if path.name in EXCLUDE_FILENAMES or path.suffix.lower() in EXCLUDE_EXTENSIONS:
         return True
-    if path.suffix.lower() in EXCLUDE_EXTENSIONS:
-        return True
-    if any(pattern in filepath for pattern in EXCLUDE_PATTERNS):
+    normalized_path = path.as_posix()
+    if any(pattern in normalized_path for pattern in EXCLUDE_PATTERNS):
         return True
     return False
 
@@ -72,68 +76,95 @@ def is_binary_content(filename: str, content: bytes) -> bool:
 
 def generate_file_tree(paths: List[str]) -> str:
     tree = ["📁 Root"]
+    structure = {}
     for path in sorted(paths):
-        indent = "  " * (path.count('/'))
-        tree.append(f"{indent}📄 {Path(path).name}")
+        parts = path.split('/')
+        current_level = structure
+        for part in parts:
+            current_level = current_level.setdefault(part, {})
+
+    def build_tree(level_structure, indent=""):
+        for name in sorted(level_structure.keys()):
+            is_dir = bool(level_structure[name])
+            icon = "📁" if is_dir else "📄"
+            tree.append(f"{indent}{icon} {name}")
+            if is_dir:
+                build_tree(level_structure[name], indent + "  ")
+
+    build_tree(structure)
     return "\n".join(tree) + "\n\n"
 
-def fetch_files(owner: str, repo: str, path: str = "", is_hf: bool = False) -> Optional[List[Dict]]:
-    api_url = (
-        f"https://huggingface.co/api/spaces/{owner}/{repo}/tree/main/{path.rstrip('/')}"
-        if is_hf
-        else f"{GITHUB_API}{owner}/{repo}/contents/{path.rstrip('/')}"
-    )
-    
+def get_github_files_recursive(owner: str, repo: str) -> Tuple[Optional[List[Dict]], Optional[str]]:
     try:
-        response = requests.get(api_url, headers={"Accept": "application/json"}, timeout=10)
-        response.raise_for_status()
-        if not response.headers.get('Content-Type', '').startswith('application/json'):
-            return None
-        items = response.json()
-        
-        files = []
-        for item in items:
-            if item.get('type') == 'file':
-                files.append(item)
-            elif item.get('type') == 'dir':
-                sub_files = fetch_files(owner, repo, item['path'], is_hf)
-                if sub_files:
-                    files.extend(sub_files)
-        return files
-    except requests.RequestException:
-        return None
+        repo_info_url = f"{GITHUB_API}{owner}/{repo}"
+        repo_response = requests.get(repo_info_url, headers=HEADERS, timeout=10)
+        repo_response.raise_for_status()
+        default_branch = repo_response.json()['default_branch']
+
+        branch_info_url = f"{GITHUB_API}{owner}/{repo}/branches/{default_branch}"
+        branch_response = requests.get(branch_info_url, headers=HEADERS, timeout=10)
+        branch_response.raise_for_status()
+        tree_sha = branch_response.json()['commit']['commit']['tree']['sha']
+
+        tree_url = f"{GITHUB_API}{owner}/{repo}/git/trees/{tree_sha}?recursive=1"
+        tree_response = requests.get(tree_url, headers=HEADERS, timeout=30)
+        tree_response.raise_for_status()
+
+        files = [
+            {"path": item['path']}
+            for item in tree_response.json()['tree']
+            if item['type'] == 'blob'
+        ]
+        return files, default_branch
+
+    except requests.RequestException as e:
+        error_message = f"Error fetching from GitHub API: {e}. "
+        if 'rate limit' in str(e).lower() and not GITHUB_TOKEN:
+            error_message += "You may have hit the rate limit. Please set a GITHUB_TOKEN environment variable."
+        raise ConnectionError(error_message) from e
 
 def get_hf_files(owner: str, repo: str) -> List[Dict]:
-    api = HfApi(token=os.getenv('HF_TOKEN'))
     try:
+        api = HfApi(token=os.getenv('HF_TOKEN'))
         file_paths = api.list_repo_files(repo_id=f'{owner}/{repo}', repo_type="space")
         return [{"path": path} for path in file_paths]
-    except Exception:
-        return []
+    except Exception as e:
+        raise ConnectionError(f"Error fetching from Hugging Face Hub: {e}") from e
 
-def get_repo_contents(url: str) -> Tuple[Optional[str], Optional[str], Union[List[Dict], str], bool]:
+def get_repo_contents(url: str) -> Tuple[Optional[str], Optional[str], Optional[str], Union[List[Dict], str], bool]:
     try:
         parts = url.rstrip('/').split('/')
         owner, repo = parts[-2], parts[-1]
         is_hf = "huggingface.co" in url.lower()
-        files = get_hf_files(owner, repo) if is_hf else fetch_files(owner, repo)
-        if not files:
-            raise ValueError(f"No files found in {'Hugging Face Space' if is_hf else 'GitHub repository'}")
-        return owner, repo, files, is_hf
-    except Exception as e:
-        return None, None, f"Error fetching repo contents: {str(e)}", False
+        default_branch = None
 
-def process_file_content(file_info: Dict, owner: str, repo: str, is_hf: bool = False) -> str:
+        if is_hf:
+            files = get_hf_files(owner, repo)
+        else:
+            files, default_branch = get_github_files_recursive(owner, repo)
+
+        if not files:
+            error_msg = f"No files found in {'Hugging Face Space' if is_hf else 'GitHub repository'}."
+            if not is_hf and not GITHUB_TOKEN:
+                 error_msg += " If this is a private repo or you've hit a rate limit, please set a GITHUB_TOKEN."
+            raise ValueError(error_msg)
+            
+        return owner, repo, default_branch, files, is_hf
+    except Exception as e:
+        return None, None, None, f"Error fetching repo contents: {str(e)}", False
+
+def process_file_content(file_info: Dict, owner: str, repo: str, default_branch: Optional[str] = None, is_hf: bool = False) -> str:
     file_path = file_info['path']
     try:
-        response = requests.get(
-            f"https://huggingface.co/spaces/{owner}/{repo}/raw/main/{file_path}" if is_hf
-            else f"{GITHUB_API}{owner}/{repo}/contents/{file_path}",
-            headers={"Accept": "application/json"} if not is_hf else {},
-            timeout=10
-        )
+        if is_hf:
+            url = f"https://huggingface.co/spaces/{owner}/{repo}/raw/main/{file_path}"
+            response = requests.get(url, timeout=10)
+        else:
+            url = f"https://raw.githubusercontent.com/{owner}/{repo}/{default_branch}/{file_path}"
+            response = requests.get(url, timeout=10)
+
         response.raise_for_status()
-        content_raw = response.content if is_hf else base64.b64decode(response.json()['content'])
+        content_raw = response.content
         
         if is_binary_content(file_path, content_raw):
             return f"### File: {file_path}\n[Binary file - {len(content_raw)} bytes]\n\n"
@@ -147,9 +178,16 @@ def process_file_content(file_info: Dict, owner: str, repo: str, is_hf: bool = F
                 return f"### File: {file_path}\n```json\n{formatted_json}\n```\n\n"
             except json.JSONDecodeError:
                 return f"### File: {file_path}\n```json\n{text_content}\n```\n[Note: Invalid JSON format]\n\n"
+        
         return f"### File: {file_path}\n```{file_extension}\n{text_content}\n```\n\n"
+
+    except requests.RequestException as e:
+        error_message = f"Error fetching file content: {e}"
+        if '404' in str(e):
+             error_message += " (This can happen with submodules or broken links)"
+        return f"### File: {file_path}\n[{error_message}]\n\n"
     except Exception as e:
-        return f"### File: {file_path}\n[Error fetching file content: {str(e)}]\n\n"
+        return f"### File: {file_path}\n[Error processing file: {str(e)}]\n\n"
 
 def process_uploaded_file(file: object) -> str:
     filename = getattr(file, 'filename', 'unknown')
@@ -174,35 +212,33 @@ def process_uploaded_file(file: object) -> str:
 
 def create_markdown_document(url: Optional[str] = None, files: Optional[List[object]] = None) -> str:
     if url:
-        owner, repo, contents, is_hf = get_repo_contents(url)
+        owner, repo, default_branch, contents, is_hf = get_repo_contents(url)
         if isinstance(contents, str):
             return f"Error: {contents}"
         
-        contents = [item for item in contents if not is_excluded(item['path'])]
-        if not contents:
-            return f"Error: No non-excluded files found in the repository."
+        filtered_contents = [item for item in contents if not is_excluded(item['path'])]
+        if not filtered_contents:
+            return "Error: No non-excluded files found in the repository."
 
         markdown_content = [
             f"# {'Space' if is_hf else 'Repository'}: {owner}/{repo}\n",
-            "## File Structure\n```\n",
-            generate_file_tree([item['path'] for item in contents]),
-            "```\n\n",
+            "## File Structure\n",
+            generate_file_tree([item['path'] for item in filtered_contents]),
             f"Below are the contents of all files in the {'space' if is_hf else 'repository'}:\n\n"
         ]
-        markdown_content.extend(process_file_content(item, owner, repo, is_hf) for item in contents)
+        markdown_content.extend(process_file_content(item, owner, repo, default_branch, is_hf) for item in filtered_contents)
     else:
-        files = [file for file in files if not is_excluded(file.filename)]
-        if not files:
-            return f"Error: No non-excluded files were uploaded."
+        filtered_files = [file for file in files if hasattr(file, 'filename') and not is_excluded(file.filename)]
+        if not filtered_files:
+            return "Error: No non-excluded files were uploaded."
 
         markdown_content = [
             "# Uploaded Files\n",
-            "## File Structure\n```\n",
-            generate_file_tree([file.filename for file in files]),
-            "```\n\n",
+            "## File Structure\n",
+            generate_file_tree([file.filename for file in filtered_files]),
             "Below are the contents of all uploaded files:\n\n"
         ]
-        markdown_content.extend(process_uploaded_file(file) for file in files)
+        markdown_content.extend(process_uploaded_file(file) for file in filtered_files)
     
     return "".join(markdown_content)
 
@@ -223,7 +259,7 @@ def markdown_to_files(markdown_text: str) -> Tuple[Union[List[Dict], str], Dict[
             is_binary = True
         elif line.startswith("```"):
             in_code_block = not in_code_block
-        elif in_code_block and not is_binary and line != "```":
+        elif in_code_block and not is_binary:
             current_content.append(line)
 
     if current_filename:
@@ -231,4 +267,6 @@ def markdown_to_files(markdown_text: str) -> Tuple[Union[List[Dict], str], Dict[
         files.append({"filename": current_filename, "content": "[Binary File]" if is_binary else content, "is_binary": is_binary, "filepath": current_filename})
         buffers[current_filename] = b"[Binary content not stored]" if is_binary else content.encode('utf-8')
 
-    return files or "Error: No files found in the markdown document.", buffers
+    if not files:
+        return "Error: No files found in the markdown document.", {}
+    return files, buffers
