@@ -10,44 +10,67 @@ from typing import List, Tuple, Dict, Optional, Union
 
 GITHUB_API = "https://api.github.com/repos/"
 
-# A set of common text file extensions for quick binary/text classification
 TEXT_EXTENSIONS = {
     'py', 'md', 'txt', 'js', 'html', 'css', 'json', 'toml', 'yaml', 'yml',
-    'xml', 'csv', 'sh', 'bat', 'ini', 'cfg', 'conf', 'log', 'rst', 'gitignore',
-    'sql', 'env', 'dockerfile'
+    'xml', 'csv', 'sh', 'bat', 'ini', 'cfg', 'conf', 'rst',
+    'sql', 'ts', 'tsx', 'jsx', 'c', 'cpp', 'h', 'hpp', 'java', 'go',
+    'php', 'rb', 'pl', 'swift', 'kt', 'kts', 'dart', 'scala', 'hs', 'lua',
+    'r', 'ps1', 'svg'
 }
 
+TEXT_FILENAMES = {
+    'dockerfile', 'license', 'readme', 'requirements.txt',
+    'setup.py', 'gemfile', 'procfile', 'makefile'
+}
+
+EXCLUDE_EXTENSIONS = {'.lock', '.log', '.env', '.so', '.o', '.a', '.dll', '.exe'}
+EXCLUDE_FILENAMES = {'.gitignore', '.DS_Store'}
+EXCLUDE_PATTERNS = {'__pycache__/', '.git/', 'node_modules/'}
+
+def is_excluded(filepath: str) -> bool:
+    path = Path(filepath)
+    if path.name in EXCLUDE_FILENAMES:
+        return True
+    if path.suffix.lower() in EXCLUDE_EXTENSIONS:
+        return True
+    if any(pattern in filepath for pattern in EXCLUDE_PATTERNS):
+        return True
+    return False
+
 def is_binary_content(filename: str, content: bytes) -> bool:
-    """
-    Determine if file content is binary by checking extension and content.
-    Any file that is not determined to be text is considered binary.
-    """
+    if not content:
+        return False
+
     file_path = Path(filename)
     extension = file_path.suffix[1:].lower()
 
-    # 1. Check by common text extensions and special filenames
-    if extension in TEXT_EXTENSIONS or file_path.name.lower() in ('dockerfile', '.gitignore'):
+    if extension in TEXT_EXTENSIONS or file_path.name.lower() in TEXT_FILENAMES:
         return False
 
-    # 2. Check by guessed MIME type
     mime_type, _ = mimetypes.guess_type(filename)
     if mime_type and mime_type.startswith('text/'):
         return False
 
-    # 3. Heuristic: Check for null bytes in the first chunk of the file.
-    # This is a strong indicator for many binary formats.
-    if b'\0' in content[:1024]:
+    if content.startswith((b'\xef\xbb\xbf', b'\xfe\xff', b'\xff\xfe')):
+        return False
+
+    sample = content[:1024]
+    if b'\0' in sample:
         return True
 
-    # 4. Final check: Try to decode the whole content. If it fails, it's binary.
+    text_chars = set(bytes(range(32, 127)) + b'\n\r\t\f\b')
+    if len(sample) > 0:
+        non_text_ratio = sum(1 for byte in sample if byte not in text_chars) / len(sample)
+        if non_text_ratio > 0.30:
+            return True
+
     try:
         content.decode('utf-8')
-        return False  # It's a text file if it decodes successfully
+        return False
     except UnicodeDecodeError:
-        return True   # It's a binary file if it fails to decode
+        return True
 
 def generate_file_tree(paths: List[str]) -> str:
-    """Generate a simple file tree from a list of paths."""
     tree = ["📁 Root"]
     for path in sorted(paths):
         indent = "  " * (path.count('/'))
@@ -55,7 +78,6 @@ def generate_file_tree(paths: List[str]) -> str:
     return "\n".join(tree) + "\n\n"
 
 def fetch_files(owner: str, repo: str, path: str = "", is_hf: bool = False) -> Optional[List[Dict]]:
-    """Recursively fetch all files from a repository (GitHub or Hugging Face)."""
     api_url = (
         f"https://huggingface.co/api/spaces/{owner}/{repo}/tree/main/{path.rstrip('/')}"
         if is_hf
@@ -82,18 +104,14 @@ def fetch_files(owner: str, repo: str, path: str = "", is_hf: bool = False) -> O
         return None
 
 def get_hf_files(owner: str, repo: str) -> List[Dict]:
-    """Fetch all file paths from a Hugging Face Space."""
     api = HfApi(token=os.getenv('HF_TOKEN'))
     try:
-        # HfApi.list_repo_files returns a list of file paths (str)
         file_paths = api.list_repo_files(repo_id=f'{owner}/{repo}', repo_type="space")
-        # Return a list of dicts to be consistent with the structure from fetch_files
         return [{"path": path} for path in file_paths]
     except Exception:
         return []
 
 def get_repo_contents(url: str) -> Tuple[Optional[str], Optional[str], Union[List[Dict], str], bool]:
-    """Parse URL and fetch repository contents."""
     try:
         parts = url.rstrip('/').split('/')
         owner, repo = parts[-2], parts[-1]
@@ -106,7 +124,6 @@ def get_repo_contents(url: str) -> Tuple[Optional[str], Optional[str], Union[Lis
         return None, None, f"Error fetching repo contents: {str(e)}", False
 
 def process_file_content(file_info: Dict, owner: str, repo: str, is_hf: bool = False) -> str:
-    """Process individual file content from a repository."""
     file_path = file_info['path']
     try:
         response = requests.get(
@@ -135,7 +152,6 @@ def process_file_content(file_info: Dict, owner: str, repo: str, is_hf: bool = F
         return f"### File: {file_path}\n[Error fetching file content: {str(e)}]\n\n"
 
 def process_uploaded_file(file: object) -> str:
-    """Process uploaded file content."""
     filename = getattr(file, 'filename', 'unknown')
     try:
         content_raw = file.read()
@@ -157,12 +173,15 @@ def process_uploaded_file(file: object) -> str:
         return f"### File: {filename}\n[Error processing file: {str(e)}]\n\n"
 
 def create_markdown_document(url: Optional[str] = None, files: Optional[List[object]] = None) -> str:
-    """Create markdown document from repo contents or uploaded files."""
     if url:
         owner, repo, contents, is_hf = get_repo_contents(url)
         if isinstance(contents, str):
             return f"Error: {contents}"
         
+        contents = [item for item in contents if not is_excluded(item['path'])]
+        if not contents:
+            return f"Error: No non-excluded files found in the repository."
+
         markdown_content = [
             f"# {'Space' if is_hf else 'Repository'}: {owner}/{repo}\n",
             "## File Structure\n```\n",
@@ -172,6 +191,10 @@ def create_markdown_document(url: Optional[str] = None, files: Optional[List[obj
         ]
         markdown_content.extend(process_file_content(item, owner, repo, is_hf) for item in contents)
     else:
+        files = [file for file in files if not is_excluded(file.filename)]
+        if not files:
+            return f"Error: No non-excluded files were uploaded."
+
         markdown_content = [
             "# Uploaded Files\n",
             "## File Structure\n```\n",
@@ -184,7 +207,6 @@ def create_markdown_document(url: Optional[str] = None, files: Optional[List[obj
     return "".join(markdown_content)
 
 def markdown_to_files(markdown_text: str) -> Tuple[Union[List[Dict], str], Dict[str, bytes]]:
-    """Convert a markdown document back into individual files."""
     files, buffers = [], {}
     current_filename, current_content = None, []
     is_binary, in_code_block = False, False
